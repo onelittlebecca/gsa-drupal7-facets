@@ -1,0 +1,463 @@
+<?php
+
+function google_search_facets_init () {
+  drupal_add_js(drupal_get_path('module', 'google_search_facets') . '/google_search_facets.js');
+  drupal_add_library('system', 'ui.slider');
+}
+
+/**
+* Implements hook_theme_registry_alter().
+*/
+function google_search_facets_theme_registry_alter(&$theme_registry) {
+  $theme_registry['google_appliance_keymatch']['function'] = 'google_search_facets_google_appliance_keymatch';
+}
+
+
+/**
+* Implements hook_google_appliance_query_alter().
+*/
+function google_search_facets_google_appliance_query_alter(&$query) {
+  if(variable_get('google_search_facets_google_switch_off', false)){
+    drupal_goto('http://www.si.edu/search/searchinterruption', array('external' => TRUE));
+  }
+  
+  $filters = array();
+  $term;
+  if(isset($_GET['term'])){
+    $query['gsa_query_params']['partialfields'] = 'dcterms%2eformat:'.$_GET['term'];
+  }
+  if(isset($_GET['tag'])){
+    $tag_array = explode('^*^', $_GET['tag']);
+    foreach($tag_array as $tag){
+      $characters = array('.'=> '%2e', '^*^' => '.', '(' => '%28', ')' => '%29', ',' => '%2C', '-' =>'%2D');
+      foreach($characters as $key => $val){
+        $tag = str_replace($key, $val, $tag);
+      }
+      $colon_removal = explode(':', $tag, 2 );
+      $colon_removal[1] = str_replace(':', '%3A', $colon_removal[1]);
+      $tag = implode(':', $colon_removal);
+      $filters[] = $tag;
+    }
+  }
+
+  $years = array();
+  if(!empty($_GET['start_year']) && !empty($_GET['end_year'])){
+    $date_added = intval($_GET['start_year']);
+    $end_Date = intval($_GET['end_year']); 
+    $query['old_q_holder'] = $query['gsa_query_params']['q'];
+    $query['gsa_query_params']['q'] .= " AND inmeta:gEra:$date_added..$end_Date";
+  }
+  
+  if(sizeof($filters) > 0){
+    $query['gsa_query_params']['requiredfields'] = implode('.', $filters);
+    $left_bookend = ".(";
+    $right_bookend =")";
+  }
+  
+  $query['gsa_query_params']['filter'] = 0;
+}
+
+/**
+ *Implements hook_form_alter
+ * You have to embed the google search form into your theme in order to actually alter the outcome
+ */
+function google_search_facets_form_alter(&$form, &$form_state, $form_id) {
+ 	if($form_id == "google_appliance_search_form"){
+    	$form_state['action'] = "search/facets/";
+//     	kpr($form_state);
+    	if(isset($form_state['build_info']['args'][0]) && empty($form_state['build_info']['args'][0])){
+      		$form['basic']['#prefix'] = "<div class='empty_search_block'><h1>Site Search</h1>";
+      		$form['basic']['#suffix'] = "</div>";
+      		unset($form['basic']['prompt']);
+    	}
+  	}
+  	if($form_id == "google_search_facets_search_findingaids_form"){
+    	$form['#action'] = 'search/facets?destination=thank-you';
+  	}
+}
+
+
+/**
+* Implements hook_preprocess().
+*/
+function google_search_facets_preprocess(&$variables, $hook) {
+  if(isset($variables['search_query_data']['old_q_holder'])){
+    $variables['search_query_data']['gsa_query_params']['q'] = $variables['search_query_data']['old_q_holder'];
+    $variables['search_form']['basic']['search_keys']['#value'] = $variables['search_query_data']['old_q_holder'];
+  }
+  
+  //preproccess page - (Add remove filter links)
+  if($hook == "google_appliance_results"){
+    $filters_clean = "";
+    if(isset($_GET['start_year']) && isset($_GET['end_year'])){
+      $get = $_GET;
+      unset($get['start_year']);
+      unset($get['end_year']);
+      unset($get['q']);
+      $uri = http_build_query($get);
+      $filters_clean .= "<li><a href='?$uri' class='collections-facet selected'>Date Range: ".$_GET['start_year'] .'-'.$_GET['end_year']."</a></li>";
+    }
+    
+    if(isset($variables['search_query_data']['gsa_query_params']['requiredfields'])){
+      $filters = explode('.', $variables['search_query_data']['gsa_query_params']['requiredfields']);
+      $current_url = urldecode($_SERVER[REQUEST_URI]);
+      foreach($filters as &$filter){
+        $clean_tag = substr(urldecode($filter), strpos( urldecode($filter), ":") +1);
+        $tag_name = str_replace('dcterms.', '', substr(urldecode($filter), 0, strpos( urldecode($filter), ":")));
+        $tag_name = ucfirst($tag_name);
+
+        if($tag_name !== "Format"){
+          $filters_clean .= "<li><a href='".remove_url_item($filter, $_GET)."' class='collections-facet selected'>$tag_name: ".$clean_tag."</a></li>";
+        }
+      }
+    }
+    
+    $variables['filter_remove_links'] = $filters_clean;
+    
+  }
+}
+
+/*
+** utility function for removing items and building data strings for urls
+*/
+function remove_url_item($remove_item, $get){
+  unset($get['q']);
+  $tags = explode("^*^", $get['tag']);
+  foreach($tags as $key => $val) {
+    if(strpos(urldecode($val), urldecode($remove_item)) !== false)
+        unset($tags[$key]);
+  }
+  if(!empty($tags)){
+    $get['tag'] = implode('^*^', $tags);
+  }else{
+    unset ($get['tag']);
+  }
+  $uri = http_build_query($get);
+  return "?$uri";
+}
+
+/**
+* Implements hook_google_appliance_results_alter().
+*/
+function google_search_facets_google_appliance_results_alter(&$results, &$payload) {
+  //Dynamic Nav =========//
+  //kpr($results);
+  //kpr($payload);
+  $dynamic_nav = array();
+  foreach ($payload->xpath('//PARM') as $wrapper) {
+    foreach($wrapper->xpath('//PMT') as $Nav){
+      $tag_name = (string)$Nav->attributes()->NM;
+      $dynamic_nav[$tag_name]['human_name'] = (string)$Nav->attributes()->DN;
+      foreach($Nav->PV as $tag_val){
+        $dynamic_nav[$tag_name]['tags'][(string)$tag_val->attributes()->V] = (string)$tag_val->attributes()->C;
+      }
+    }
+  }
+  $results['dynamic_nav'] = $dynamic_nav;
+  
+  //ONE BOX===========//
+  // Loop through each OneBox.
+  foreach ($payload->xpath('//OBRES') as $onebox) {
+    if ($onebox->resultCode == 'success') {
+      $this_result = array();
+      // dsm $onebox to determine its structure, how to parse it.
+      // Once parsed, you might add them to the result like this.
+      if((string) $onebox->attributes()->module_name == "siris-onebox"){
+        $this_result['search_term'] = (string) $onebox->searchTerm;
+        $this_result['link'] = (string)$onebox->title->urlLink;
+        $i = 0;
+        foreach($onebox->MODULE_RESULT as $siris_result){
+          $this_result['results'][$i]['url'] = (string)$siris_result->U;
+          $this_result['results'][$i]['title'] = (string)$siris_result->Title;
+          foreach ($siris_result->Field as $xml_fields)
+            {
+                if ($xml_fields->attributes()->name == 'image')
+                {
+                    $this_result['results'][$i]['image'] = (string)$xml_fields;
+                }
+            }
+          $i++;
+        }
+        $results['onebox'][(string) $onebox->attributes()->module_name] = $this_result;
+      }
+    }
+  }
+}
+
+
+/**
+* Implements hook_block_info().
+*/
+function google_search_facets_block_info() {
+  // Define blocks for each unique OneBox.
+  $blocks['facets_search_siris_onebox'] = array(
+    'info' => t('One Box'),
+  );
+  $blocks['facets_search_dynamic_nav'] = array(
+    'info' => t('Dynamic Nav - GSA'),
+  );
+  $blocks['facets_search_date_range'] = array(
+    'info' => t('Date Range'),
+  );
+  return $blocks;
+}
+
+
+/**
+* Implements hook_block_view().
+*/
+function google_search_facets_block_view($delta = '') {
+  $block = array();
+  switch($delta){
+    case 0:
+      $block = array(
+		'subject' => t('Siris Search'),
+		'content' => facets_search_siris_onebox()
+	  );
+    break;
+    case 1:
+      $block = array(
+		'subject' => t('Dynamic Nav'),
+		'content' => facets_search_dynamic_nav()
+	  );
+    break;
+  
+    case 2:
+      $block = array(
+		'subject' => t('Date Range Filter Nav'),
+		'content' => facets_search_date_range()
+	  );
+    break;
+    
+  }
+  return $block;
+}
+
+/*
+ * callback for Siris search box - "also in si's collection"
+ */
+function facets_search_siris_onebox(){
+  // Pull GSA response XML from the static cache.
+  $results = &drupal_static('google_appliance_parse_device_response_xml');
+  $block_content ='';
+  if(isset($results['onebox']['siris-onebox'])){
+      $images ="";
+      foreach($results['onebox']['siris-onebox']['results'] as $img_result){
+        $images .="<img src = '".$img_result['image']."'>";
+      }
+      $block_content = '<div class="csc_callout"><h3><img src ="/sites/all/themes/siaomega/_images/csc-logo-b48h-screen.png" alt = "Smithsonian Collections Search Center" ></h3><p><a href="'.$results['onebox']['siris-onebox']['link'].'" >View results for "'.$results['onebox']['siris-onebox']['search_term'].'" from across the Smithsonian.</a></p>'.$images.'</div>';
+  }
+  
+  return $block_content;
+}
+
+/*
+ * callback for dynamic nav box - meta tag filtering
+ */
+function facets_search_dynamic_nav(){
+  // Pull GSA response XML from the static cache.
+  $results = &drupal_static('google_appliance_parse_device_response_xml');
+  $delem = "?";
+  $term_string = "";
+  if(isset($_GET['term'])){
+    $term_string = "?term=".$_GET['term'];
+    $delem = '&';
+  }
+  $perm_tags_key = explode('^*^', $_GET['tag']);
+  
+  foreach($results['dynamic_nav'] as $key=>$nav_block){
+    $key_url = str_replace('.', '%2e', $key);
+    $tag_link = "";
+    $block_content .= '<div class="menu_block dynamic_nav"><h3>'.$nav_block['human_name'].'</h3><ul class="dynamic_nav_list" id="'.$key.'">';
+    
+    foreach($nav_block['tags'] as $tag=>$count){
+      $select_tags = $perm_tags_key;
+      $classes = '';
+      $active = false;
+      
+      /*if(substr($tag, -1) == '.'){
+          $tag = rtrim($tag, ".");
+      }*/
+      
+      //check if the tag is tagged as being slected in the get params
+      foreach($select_tags as $select_tag){
+        if(urldecode(str_replace($key.":", "", $select_tag)) == $tag){
+          $classes = "selected";
+          $active = true;
+        }
+      }
+      
+      //build out the selected tag list for url GET vars. 
+      if(isset($_GET['tag'])){
+        //check if our link is in the array of exploded items, if it is, we'll need to remove it. ()
+        if(in_array($key.':'.$tag, $select_tags)){
+          unset($select_tags[array_search($key.':'.$tag, $select_tags)]);
+        }else{
+          array_push($select_tags, $key_url.':'.$tag);
+        }
+        if(count($select_tags) > 0){
+          $tag_link = 'tag='.implode('^*^', $select_tags);
+        }else{
+          $tag_link = '';
+        }
+      }else{
+        $tag_link = 'tag='.$key_url.':'.$tag;
+      }
+      
+      if(isset($_GET['start_year']) && isset($_GET['end_year'])){
+        $tag_link .= "&start_year=".$_GET['start_year']."&end_year=".$_GET['end_year'];
+      }
+      
+      $expandlink ="";
+      if(count($nav_block['tags']) > 5){
+        $expandlink = '<a href="#" class="expand">More</a><a href="#" class="compress hidden">Less</a>';
+      }
+      $block_content .= '<li><a href="'.$term_string.$delem.$tag_link.'" class="collections-facet '.$classes.'">'.$tag.' ('.$count.')</a></li>';
+    }
+    $block_content .= '</ul>'.$expandlink.'</div>';
+  }
+  return $block_content;
+}
+
+/*
+ * callback for date range selector box
+ */
+function facets_search_date_range(){
+  if(isset($_GET['start_year']) && isset($_GET['end_year'])){
+    $start = $_GET['start_year'];
+    $end = $_GET['end_year'];
+  }else{
+    $start = 1700;
+    $end = ceil(date ('Y') / 10) * 10;
+  }
+  $output = '<div class="menu_block dynamic_nav"><h3>Select Date Range</h3>';
+  $form_output = drupal_get_form('google_search_facets_date_range_form');
+  $output .= '<p></p><div id="gsearch-date-ranges"><p>Show items from <span class = "from">'.$start.'</span> to <span class ="to">'.$end.'</span><p></div><div id="slider-range"></div>';
+  $output .= drupal_render($form_output);
+  $output .= '</div>';
+  
+  return $output;
+}
+
+/*
+ * date range form
+ */
+function facets_search_date_range_form($form_id, $form_state, $dates = null){
+  $form = array();
+  $form['#method'] = 'get';
+  $getvars = $_GET;
+  unset($getvars['q']);
+
+  $form['start_year'] = array(
+	'#type' => 'textfield',
+	'#title' => t("Year Start"),
+	'#size' => '',
+    '#value' => (isset($_GET['start_year']) ? $_GET['start_year'] : ""),
+  );
+    
+  $form['end_year'] = array(
+	'#type' => 'textfield',
+	'#title' => t("Year End"),
+	'#size' => '',
+    '#value' => (isset($_GET['end_year']) ?  $_GET['end_year'] : ""),
+  );
+  
+  if(isset($getvars['tag'])){
+    $form['tag'] = array(
+      '#type' => 'hidden',
+      '#value' => $getvars['tag'],
+    );
+  }
+  
+  if(isset($getvars['term'])){
+    $form['term'] = array(
+      '#type' => 'hidden',
+      '#value' => $getvars['term'],
+    );
+  }
+    
+   $form['submit'] = array(
+	'#type' => 'submit',
+	'#value' => t('Submit'),
+	'#attributes' => array('class' => array('sprite')),
+  );
+    
+  return $form;
+}
+
+
+/**
+* Custom theme callback for keymatches.
+*/
+function google_search_facets_google_appliance_keymatch($keymatch) {
+  // If the keymatch title is numeric, we mean to load/render a node.
+  $description = $keymatch['description'];
+  $url = $keymatch['url'];
+  $class = implode(' ', $keymatch['classes_array']);
+  
+  if(isset($url)){
+  //maybe we could make the alias url a box in form in backend of drupal also -- or automatically get URL
+    $alias = str_replace('http://library.si.edu/', '', $url);
+    $path = drupal_lookup_path("source", $alias);
+    $node = menu_get_object("node", 1, $path);
+    if(isset($node->field_synopsis['und'][0]['value']) && strlen(isset($node->field_synopsis['und'][0]['value'])) > 10){
+      $text = check_markup($node->field_synopsis['und'][0]['value'], '2');
+    }else{
+      $pattern = '/<img[^>]+\>/';
+      preg_match($pattern, $node->body['und'][0]['value'], $matches);
+      $no_old_image = str_replace($matches[0], "", $node->body['und'][0]['value']);
+      $pattern = "/\[edan\-image\:id\=(?P<id>.+)\,size\=(?P<size>\d+),(?P<side>left|right)\]/U";
+      preg_match($pattern, $no_old_image, $matches);    
+      $filtered = str_replace($matches['side'], 'left', str_replace($matches['size'], 90, $no_old_image)); 
+      $text = check_markup(text_summary($filtered), '2');
+    }
+  }
+  $callout = '';
+  $callout = "<li class='clear-fixgoogle-appliance-result clear-fix'><div ".$keymatch['attributes']."><h3 class='title'><a href='/$alias'>$description</a></h3><p>$text<p></div></li>";
+    
+  return $callout;
+} 
+
+//Google backend menu, using hook_menu 
+
+function google_search_facets_menu () {
+	$items = array();
+
+    $items['search'] = array(
+      'title' => 'Search',
+      'page callback' => 'google_appliance_search_view',
+      'page arguments' => array(2),
+      'access arguments' => array('access_google_appliance_content'),
+      'type' => MENU_SUGGESTED_ITEM,
+    );
+    $items["admin/config/search/google_search_facets"] = array(
+		'title' => 'Google Search - Facets Settings ',
+		'access arguments' => array('administer site configuration'),
+		'page arguments' => array('maintenance_switch'),
+		'page callback' => 'drupal_get_form',
+        'type' => MENU_NORMAL_ITEM,
+        
+	);
+
+	return $items;
+}
+
+function maintenance_switch($form, &$form_state){
+  
+  $form['switch_off'] = array(
+	'#type' => 'checkbox',
+	'#title' => t('Put google into maintenance mode'),
+    '#default_value' =>variable_get('google_search_facets_google_switch_off', false),
+  );
+  
+  $form['date']['submit'] = array(
+	'#type' => 'submit',
+	'#value' => t('Submit'),
+  );
+  
+  return $form;
+}
+
+function maintenance_switch_submit($form, &$form_state) {
+  variable_set('google_search_facets_google_switch_off', $form_state['values']['switch_off']);
+}
