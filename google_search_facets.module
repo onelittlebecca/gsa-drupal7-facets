@@ -199,6 +199,7 @@ function google_search_facets_block_info() {
   $blocks['facets_search_date_range'] = array(
     'info' => t('Date Range'),
   );
+  kpr($blocks);
   return $blocks;
 }
 
@@ -209,26 +210,24 @@ function google_search_facets_block_info() {
 function google_search_facets_block_view($delta = '') {
   $block = array();
   switch($delta){
-    case 0:
-      $block = array(
-		'subject' => t('Siris Search'),
-		'content' => facets_search_siris_onebox()
-	  );
-    break;
-    case 1:
-      $block = array(
-		'subject' => t('Dynamic Nav'),
-		'content' => facets_search_dynamic_nav()
-	  );
-    break;
-  
-    case 2:
-      $block = array(
-		'subject' => t('Date Range Filter Nav'),
-		'content' => facets_search_date_range()
-	  );
-    break;
-    
+		case 'facets_search_siris_onebox':
+			$block = array(
+				'subject' => t('Siris Search'),
+				'content' => facets_search_siris_onebox()
+			);
+			break;
+		case 'facets_search_dynamic_nav':
+			$block = array(
+				'subject' => t('Dynamic Nav'),
+				'content' => facets_search_dynamic_nav()
+			);
+			break;
+		case 'facets_search_date_range':
+			$block = array(
+				'subject' => t('Date Range Filter Nav'),
+				'content' => facets_search_date_range()
+			);
+			break;
   }
   return $block;
 }
@@ -245,7 +244,7 @@ function facets_search_siris_onebox(){
       foreach($results['onebox']['siris-onebox']['results'] as $img_result){
         $images .="<img src = '".$img_result['image']."'>";
       }
-      $block_content = '<div class="csc_callout"><h3><img src ="/sites/all/themes/siaomega/_images/csc-logo-b48h-screen.png" alt = "Smithsonian Collections Search Center" ></h3><p><a href="'.$results['onebox']['siris-onebox']['link'].'" >View results for "'.$results['onebox']['siris-onebox']['search_term'].'" from across the Smithsonian.</a></p>'.$images.'</div>';
+      $block_content = '<div class="csc_callout"><h3><img src ="/sites/all/modules/google_search_facets/images/csc-logo-b48h-screen.png" alt = "Smithsonian Collections Search Center" ></h3><p><a href="'.$results['onebox']['siris-onebox']['link'].'" >View results for "'.$results['onebox']['siris-onebox']['search_term'].'" from across the Smithsonian.</a></p>'.$images.'</div>';
   }
   
   return $block_content;
@@ -331,7 +330,7 @@ function facets_search_date_range(){
     $end = ceil(date ('Y') / 10) * 10;
   }
   $output = '<div class="menu_block dynamic_nav"><h3>Select Date Range</h3>';
-  $form_output = drupal_get_form('google_search_facets_date_range_form');
+  $form_output = drupal_get_form('facets_search_date_range_form');
   $output .= '<p></p><div id="gsearch-date-ranges"><p>Show items from <span class = "from">'.$start.'</span> to <span class ="to">'.$end.'</span><p></div><div id="slider-range"></div>';
   $output .= drupal_render($form_output);
   $output .= '</div>';
