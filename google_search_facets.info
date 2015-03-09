@@ -3,3 +3,5 @@ name = Google Search Facets
 description = Custom functions for Google Search Faceting.
 core = 7.x
 package = Google Search Facets
+
+stylesheets[all][] = google-search-facets.css

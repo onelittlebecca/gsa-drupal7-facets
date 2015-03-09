@@ -3,6 +3,7 @@
 function google_search_facets_init () {
   drupal_add_js(drupal_get_path('module', 'google_search_facets') . '/google_search_facets.js');
   drupal_add_library('system', 'ui.slider');
+  drupal_add_css(drupal_get_path('module', 'google_search_facets') . 'google-search-facets.css', array('group' => CSS_DEFAULT, 'every_page' => TRUE));
 }
 
 /**
@@ -199,7 +200,7 @@ function google_search_facets_block_info() {
   $blocks['facets_search_date_range'] = array(
     'info' => t('Date Range'),
   );
-  kpr($blocks);
+  //kpr($blocks);
   return $blocks;
 }
 

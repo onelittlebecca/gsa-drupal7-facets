@@ -55,7 +55,7 @@ var FACETS = (function(parent, $, util, drupal) {
 	function set_date_range_slider(){
 		if($( "#edit-start-year" ).length){
 			var cur_year = new Date().getFullYear();
-			var start = 1700;
+			var start = 1400;
 			var end = Math.ceil(cur_year / 10) * 10;
 			
 			if($( "#edit-start-year" ).val().length >1 && $( "#edit-start-year" ).val().length >1 ){
@@ -65,7 +65,7 @@ var FACETS = (function(parent, $, util, drupal) {
 			
 			$( "#slider-range" ).slider({
 				range: true,
-				min: 1700,
+				min: 1400,
 				step:10,
 				max: Math.ceil(cur_year / 10) * 10,
 				values: [ start, end ],
@@ -78,6 +78,7 @@ var FACETS = (function(parent, $, util, drupal) {
 			});
 		}
 	}
+    
     
 	me.data = [];
 	
