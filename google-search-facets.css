@@ -1,7 +1,4 @@
-.search-right {
-	width: 400px;
-}
-
+/* dynamic nav styling */
 .dynamic_nav ul {
 	padding-left: 5px;
 }
@@ -25,6 +22,35 @@
     background-position: 0px;
     height: 37px;
 	padding-left: 24px;
+}
+
+/* Slider style */
+.ui-slider-handle {
+	background: url(images/slider-button.png);
+	width:24px;
+	height:24px;
+	/*position:absolute;
+	top:-7px;
+	margin-left:-12px;*/
+	z-index:200;
+}
+
+#slider-range{
+	  width: 250px;
+}
+	  
+.ui-widget-header {
+	background:url(images/fill.png) no-repeat left;
+	height:8px;
+	left:1px;
+	top:1px;
+	position:absolute;
+}
+
+
+/* Search box styling */
+.search-right {
+	width: 400px;
 }
 
 .region-header-top-right form.search-google-appliance-search-form input.form-text, 
