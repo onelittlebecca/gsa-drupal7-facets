@@ -310,7 +310,7 @@ function facets_search_dynamic_nav(){
       
       $expandlink ="";
       if(count($nav_block['tags']) > 5){
-        $expandlink = '<a href="#" class="expand">More</a><a href="#" class="compress hidden">Less</a>';
+        $expandlink = '<a href="#" class="expand" style="padding-right:100px;">More</a><a href="#" class="compress hidden">Less</a>';
       }
       $block_content .= '<li><a href="'.$term_string.$delem.$tag_link.'" class="collections-facet '.$classes.'">'.$tag.' ('.$count.')</a></li>';
     }
@@ -327,7 +327,7 @@ function facets_search_date_range(){
     $start = $_GET['start_year'];
     $end = $_GET['end_year'];
   }else{
-    $start = 1700;
+    $start = 1400;
     $end = ceil(date ('Y') / 10) * 10;
   }
   $output = '<div class="menu_block dynamic_nav"><h3>Select Date Range</h3>';
@@ -460,4 +460,56 @@ function maintenance_switch($form, &$form_state){
 
 function maintenance_switch_submit($form, &$form_state) {
   variable_set('google_search_facets_google_switch_off', $form_state['values']['switch_off']);
+}
+
+//metadata for all the pages
+function google_search_facets_preprocess_node(&$vars) {
+	//drupal_set_message('<pre>' . print_r($vars, true) . '</pre>');
+	//kpr($vars);
+//spatial metatag for book
+	if (isset($vars['field_geo_term'][0]['value'])) {
+		drupal_add_html_head(array(
+			'#tag' => 'meta', '#type' => 'html_tag',
+				'#attributes' => array(
+					'name' => 'dcterms.spatial',
+					'content' => $vars['field_geo_term'][0]['value'],
+				)
+			), 'dcterms.spatial'		
+		);
+	}
+//spatial metatag for event
+	if (isset($vars['field_location'][0]['value'])) {
+		drupal_add_html_head(array(
+			'#tag' => 'meta', '#type' => 'html_tag',
+				'#attributes' => array(
+					'name' => 'dcterms.spatial',
+					'content' => $vars['field_location'][0]['value'],
+				)
+			), 'dcterms.spatial'		
+		);
+	}
+	
+//type metatag
+	if (isset($vars['type'])) {
+		drupal_add_html_head(array(
+			'#tag' => 'meta', '#type' => 'html_tag',
+				'#attributes' => array(
+					'name' => 'dcterms.type',
+					'content' => ($vars['type']),
+				)
+			), 'dcterms.type'		
+		);
+	}
+	
+//temporal metatag
+	if (isset($vars['type'])) {
+		drupal_add_html_head(array(
+			'#tag' => 'meta', '#type' => 'html_tag',
+				'#attributes' => array(
+					'name' => 'dcterms.type',
+					'content' => ($vars['type']),
+				)
+			), 'dcterms.type'		
+		);
+	}
 }

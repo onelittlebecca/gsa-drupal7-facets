@@ -24,24 +24,46 @@
 	padding-left: 24px;
 }
 
+form#facets-search-date-range-form .form-item-start-year,
+form#facets-search-date-range-form .form-item-end-year {
+	display:none;
+}
+
+form#facets-search-date-range-form {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+	
 /* Slider style */
-.ui-slider-handle {
+.ui-slider {
+	width:230px;
+	height:11px;
+	background:url(images/slider-bg.png);
+	position:relative;
+	margin:0;
+	padding:0 10px;
+}
+
+.ui-slider-horizontal .ui-slider-handle {
 	background: url(images/slider-button.png);
 	width:24px;
 	height:24px;
-	/*position:absolute;
+	position:absolute;
 	top:-7px;
-	margin-left:-12px;*/
+	margin-left:-12px;
 	z-index:200;
 }
 
 #slider-range{
 	  width: 250px;
 }
-	  
+	
+.ui-slider .ui-slider-range{
+	background-position: 0 1px;
+}  
 .ui-widget-header {
 	background:url(images/fill.png) no-repeat left;
-	height:8px;
+	height:11px;
 	left:1px;
 	top:1px;
 	position:absolute;
