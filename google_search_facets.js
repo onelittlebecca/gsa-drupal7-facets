@@ -58,7 +58,7 @@ var FACETS = (function(parent, $, util, drupal) {
 			var start = 1400;
 			var end = Math.ceil(cur_year / 10) * 10;
 			
-			if($( "#edit-start-year" ).val().length >1 && $( "#edit-start-year" ).val().length >1 ){
+			if($( "#edit-start-year" ).val().length >1 && $( "#edit-end-year" ).val().length >1 ){
 				start = $( "#edit-start-year" ).val()
 				end = $( "#edit-end-year" ).val()
 			}
@@ -101,5 +101,5 @@ var FACETS = (function(parent, $, util, drupal) {
 
 	return parent;
 }({}, jQuery, {}, Drupal));
-
+//}(NKBASE || {}, jQuery, UTIL || {}, Drupal));
 

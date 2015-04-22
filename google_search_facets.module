@@ -101,7 +101,7 @@ function google_search_facets_preprocess(&$variables, $hook) {
     
     if(isset($variables['search_query_data']['gsa_query_params']['requiredfields'])){
       $filters = explode('.', $variables['search_query_data']['gsa_query_params']['requiredfields']);
-      $current_url = urldecode($_SERVER[REQUEST_URI]);
+      $current_url = urldecode($_SERVER["REQUEST_URI"]);
       foreach($filters as &$filter){
         $clean_tag = substr(urldecode($filter), strpos( urldecode($filter), ":") +1);
         $tag_name = str_replace('dcterms.', '', substr(urldecode($filter), 0, strpos( urldecode($filter), ":")));
@@ -112,12 +112,11 @@ function google_search_facets_preprocess(&$variables, $hook) {
         }
       }
     }
-    
+  
     $variables['filter_remove_links'] = $filters_clean;
     
   }
 }
-
 /*
 ** utility function for removing items and building data strings for urls
 */
@@ -200,6 +199,10 @@ function google_search_facets_block_info() {
   $blocks['facets_search_date_range'] = array(
     'info' => t('Date Range'),
   );
+//   $blocks['facets_search_top_nav_search'] = array(
+//     'info' => t('Top Nav Search Bar'),
+//   );
+
   //kpr($blocks);
   return $blocks;
 }
@@ -229,6 +232,13 @@ function google_search_facets_block_view($delta = '') {
 				'content' => facets_search_date_range()
 			);
 			break;
+// 		case 'facets_search_top_nav_search':
+// 			$block = array(
+// 				'subject' => t('Top Nav Search Bar'),
+// 				'content' => facets_search_top_nav_search()
+// 			);
+// 			break;
+
   }
   return $block;
 }
@@ -245,7 +255,7 @@ function facets_search_siris_onebox(){
       foreach($results['onebox']['siris-onebox']['results'] as $img_result){
         $images .="<img src = '".$img_result['image']."'>";
       }
-      $block_content = '<div class="csc_callout"><h3><img src ="/sites/all/modules/google_search_facets/images/csc-logo-b48h-screen.png" alt = "Smithsonian Collections Search Center" ></h3><p><a href="'.$results['onebox']['siris-onebox']['link'].'" >View results for "'.$results['onebox']['siris-onebox']['search_term'].'" from across the Smithsonian.</a></p>'.$images.'</div>';
+      $block_content = '<div class="csc_callout"><h3 class="title"><img class="image-title" src ="/sites/all/modules/google_search_facets/images/csc-logo-b48h-screen.png" alt = "Smithsonian Collections Search Center" ></h3><p><a href="'.$results['onebox']['siris-onebox']['link'].'" >View results for "'.$results['onebox']['siris-onebox']['search_term'].'" from across the Smithsonian.</a></p>'.$images.'</div>';
   }
   
   return $block_content;
@@ -256,6 +266,7 @@ function facets_search_siris_onebox(){
  */
 function facets_search_dynamic_nav(){
   // Pull GSA response XML from the static cache.
+  $block_content ='';
   $results = &drupal_static('google_appliance_parse_device_response_xml');
   $delem = "?";
   $term_string = "";
@@ -263,8 +274,10 @@ function facets_search_dynamic_nav(){
     $term_string = "?term=".$_GET['term'];
     $delem = '&';
   }
-  $perm_tags_key = explode('^*^', $_GET['tag']);
-  
+  $perm_tags_key = array();
+  if(isset($_GET['tag'])){
+	  $perm_tags_key = explode('^*^', $_GET['tag']);}
+if (isset($results['dynamic_nav'])){  
   foreach($results['dynamic_nav'] as $key=>$nav_block){
     $key_url = str_replace('.', '%2e', $key);
     $tag_link = "";
@@ -317,6 +330,7 @@ function facets_search_dynamic_nav(){
     $block_content .= '</ul>'.$expandlink.'</div>';
   }
   return $block_content;
+  }
 }
 
 /*
@@ -384,6 +398,7 @@ function facets_search_date_range_form($form_id, $form_state, $dates = null){
     
   return $form;
 }
+
 
 
 /**
@@ -464,9 +479,12 @@ function maintenance_switch_submit($form, &$form_state) {
 
 //metadata for all the pages
 function google_search_facets_preprocess_node(&$vars) {
-	//drupal_set_message('<pre>' . print_r($vars, true) . '</pre>');
-	//kpr($vars);
-//spatial metatag for book
+	// If we aren't on the page for this node, return early.
+	if (!$vars['page']) {
+		return;
+	}
+
+	//spatial metatag for book
 	if (isset($vars['field_geo_term'][0]['value'])) {
 		drupal_add_html_head(array(
 			'#tag' => 'meta', '#type' => 'html_tag',
@@ -477,7 +495,8 @@ function google_search_facets_preprocess_node(&$vars) {
 			), 'dcterms.spatial'		
 		);
 	}
-//spatial metatag for event
+
+	//spatial metatag for event
 	if (isset($vars['field_location'][0]['value'])) {
 		drupal_add_html_head(array(
 			'#tag' => 'meta', '#type' => 'html_tag',
@@ -489,27 +508,128 @@ function google_search_facets_preprocess_node(&$vars) {
 		);
 	}
 	
-//type metatag
+// type metatag
+	$types = node_type_get_types();
+	$human_name = $types[$vars['type']]->name;
 	if (isset($vars['type'])) {
-		drupal_add_html_head(array(
-			'#tag' => 'meta', '#type' => 'html_tag',
+		drupal_add_html_head(
+			array(
+				'#tag' => 'meta', 
+				'#type' => 'html_tag',
 				'#attributes' => array(
 					'name' => 'dcterms.type',
-					'content' => ($vars['type']),
+					'content' => $human_name,
 				)
-			), 'dcterms.type'		
+			), 
+			'dcterms.type'		
 		);
 	}
-	
+
+	//Date gEra meta tag
+	if (isset($vars['type'])) {
+		$g_era = array();
+
+		switch ($vars['type']){
+		 	case 'sil_book':
+		 		// Logic reworked by joel. Something went wrong.
+ 		 		$year1 = null;
+ 		 		$year2 = null;
+ 		 		if (isset($vars['field_year'][0])) {
+ 					$year1 = $vars['field_year'][0]['value'];
+ 				}
+ 		 		if (isset($vars['field_year_end'][0])) {
+ 					$year2 = $vars['field_year_end'][0]['value'];
+ 				}
+ 				if ($year1) {
+					array_push($g_era, $year1);
+
+					if ($year2 && $year2 != 0 && $year2 != 9999) {
+						while($year1 < $year2){
+							$year1++;
+							array_push($g_era, $year1);
+						}
+					}
+				}
+				
+				break;
+
+		 	case 'exhibition':
+		 		$yearstr = '';
+		 		if (count($vars['field_text_year']) > 0){
+					$yearstr = $vars['field_text_year']['und'][0]['value'];
+				}
+				$year = (int)$yearstr;
+				array_push($g_era, $year);
+				break;
+
+			case 'caldwell':
+				$date1 = '';
+				$date2 = '';
+				if (count($vars['field_date1']) > 0){
+					$date1 = $vars['field_date1'][0]['value'];
+				}
+				if (count($vars['field_date2']) > 0){
+					$date2 = $vars['field_date2'][0]['value'];
+				}
+				//pull first 4 characters of string
+				$year1 = substr($date1, 0, 4);
+				$year2 = substr($date2, 0, 4);
+				while($year1<=$year2){
+					array_push($g_era, $year1);
+					$year1++;
+				}
+				break;
+
+			case 'digital_library':
+				$yearstr = $vars['field_text_year'];
+				$year = (int)$yearstr;
+				array_push($g_era, $year);
+				break;
+
+			case 'event':
+				$date = '';
+				if (count($vars['field_date2']) > 0){
+					$date = $vars['field_date2'][0]['value'];
+				}
+				$year = substr($date, 0, 4);
+				array_push($g_era, $year); 
+				break;
+
+			case 'hirshhorn_audio':
+				$date = '';
+				if (count($vars['field_date1']) > 0){			
+					$date = $vars['field_date1'][0]['value'];
+				}
+				$year = substr($date, 0, 4);
+				array_push($g_era, $year); 
+				break;
+			}
+		// end switch()			
+
+		if (count($g_era) > 0){
+			drupal_add_html_head(
+				array(
+					'#tag' => 'meta', 
+					'#type' => 'html_tag',
+					'#attributes' => array(
+						'name' => 'gEra',
+						'content' => implode(",", $g_era),
+					)
+				), 
+				'gEra'		
+			);
+		}
+	}
+
 //temporal metatag
-	if (isset($vars['type'])) {
-		drupal_add_html_head(array(
-			'#tag' => 'meta', '#type' => 'html_tag',
-				'#attributes' => array(
-					'name' => 'dcterms.type',
-					'content' => ($vars['type']),
-				)
-			), 'dcterms.type'		
-		);
-	}
+// 	if (isset($vars['type'])) {
+// 		drupal_add_html_head(array(
+// 			'#tag' => 'meta', '#type' => 'html_tag',
+// 				'#attributes' => array(
+// 					'name' => 'dcterms.type',
+// 					'content' => ($vars['type']),
+// 				)
+// 			), 'dcterms.type'		
+// 		);
+// 	}
 }

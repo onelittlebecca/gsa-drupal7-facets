@@ -24,14 +24,45 @@
 	padding-left: 24px;
 }
 
+.search-result-filters {
+	margin-bottom: 40px;
+}
+
+.search-result-filters ul li a.selected {
+	background: url(images/checkbox_yes.png) no-repeat left;
+    background-position: 0px;
+    height: 37px;
+	padding-left: 24px;
+	padding-bottom: 5px;
+}
+
+.search-result-filters ul li {
+	list-style: none;
+	line-height: 25px;
+}
+	
+
+/* 
 form#facets-search-date-range-form .form-item-start-year,
 form#facets-search-date-range-form .form-item-end-year {
 	display:none;
 }
+ */
+
 
 form#facets-search-date-range-form {
   padding-top: 20px;
   padding-bottom: 20px;
+}
+
+/*onsearch box center align */
+.csc_callout img {
+	padding-left: 25%;
+	padding-bottom: 20px;
+}
+.csc_callout img.image-title {
+	padding-left: 0;
+	padding-bottom: 10px;
 }
 	
 /* Slider style */
